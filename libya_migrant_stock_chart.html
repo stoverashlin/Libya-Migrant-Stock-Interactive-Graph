@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Libya Migrant Stock 2016–2019 | IOM DTM</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#f4f5f9;color:#222}
+  h1{text-align:center;padding:26px 20px 4px;font-size:1.3rem;font-weight:700;color:#1a1a2e}
+  .subtitle{text-align:center;font-size:.82rem;color:#666;margin-bottom:12px}
+  .legend-wrap{display:flex;flex-wrap:wrap;gap:7px 16px;justify-content:center;max-width:1220px;margin:0 auto 14px;padding:0 20px}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:.76rem;cursor:pointer;user-select:none;transition:opacity .18s}
+  .legend-item.off{opacity:.32}
+  .legend-swatch{width:15px;height:15px;border-radius:3px;border:1.5px solid;flex-shrink:0}
+  .legend-star{font-size:1rem;line-height:1;flex-shrink:0}
+  .legend-line{width:26px;height:3px;background:#000;border-radius:2px;flex-shrink:0}
+  .chart-wrap{position:relative;background:#fff;margin:0 auto 16px;max-width:1220px;border-radius:12px;box-shadow:0 2px 18px rgba(0,0,0,.09);padding:22px 26px 14px}
+  #popup{position:fixed;display:none;z-index:9999;background:#fff;border-radius:10px;box-shadow:0 6px 28px rgba(0,0,0,.18);padding:15px 17px 14px;max-width:380px;min-width:240px;font-size:.83rem;line-height:1.55;border-left:5px solid #888}
+  #popup.show{display:block}
+  #popup-close{position:absolute;top:7px;right:10px;cursor:pointer;font-size:1rem;color:#999;background:none;border:none;line-height:1}
+  #popup-type{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+  #popup-date{font-size:.73rem;color:#888;margin-bottom:6px}
+  #popup-desc{color:#1a1a2e;margin-bottom:9px}
+  #popup-src a{color:#1a6fc4;font-size:.75rem;word-break:break-all;text-decoration:underline;display:block;margin-top:3px}
+  .note{text-align:center;font-size:.74rem;color:#aaa;padding-bottom:22px}
+  .star-note{text-align:center;font-size:.77rem;color:#555;margin-bottom:14px}
+</style>
+</head>
+<body>
+
+<h1>Libya Migrant Stock Estimates, 2016–2019</h1>
+<div class="subtitle">IOM Displacement Tracking Matrix (DTM) — Click any marker to view event details &amp; source link</div>
+<div class="star-note">★ = DTM methodology / FMP change &nbsp;&nbsp;● = Timeline event &nbsp;&nbsp;Click legend items to show/hide categories</div>
+
+<div class="legend-wrap" id="legendWrap"></div>
+
+<div class="chart-wrap">
+  <canvas id="myChart"></canvas>
+</div>
+
+<div id="popup">
+  <button id="popup-close" onclick="closePopup()">✕</button>
+  <div id="popup-type"></div>
+  <div id="popup-date"></div>
+  <div id="popup-desc"></div>
+  <div id="popup-src"></div>
+</div>
+
+<div class="note">Sources: IOM DTM Libya Migrant Reports (Rounds 1–27) &nbsp;|&nbsp; Libya Timeline Combined Database &nbsp;|&nbsp; Migrant stock = IOM estimate of migrants present in Libya at time of assessment</div>
+
+<script>
+// ── COLORS EXACTLY FROM SPREADSHEET LEGEND (ARGB stripped of leading 00) ──
+const BG = {
+  "1. Civil War / Armed Clashes":    "#FADBD8",
+  "2. Security Deterioration":       "#FDEBD0",
+  "3. Political / Governance Event": "#E8DAEF",
+  "4. Migration Enforcement":        "#D6EAF8",
+  "5. Economic / Labor Opportunity": "#D5F5E3",
+  "6. Transit / Route Movement":     "#D0ECE7",
+  "7. Environmental / Weather Shock":"#FDFACD",
+  "8. Humanitarian / Basic Needs":   "#FAE5D3",
+  "9. Human Trafficking/Smuggling":  "#EAECEE"
+};
+const BORDER = {
+  "1. Civil War / Armed Clashes":    "#c0392b",
+  "2. Security Deterioration":       "#ca6f1e",
+  "3. Political / Governance Event": "#7d3c98",
+  "4. Migration Enforcement":        "#1a5276",
+  "5. Economic / Labor Opportunity": "#1d6a39",
+  "6. Transit / Route Movement":     "#0e7868",
+  "7. Environmental / Weather Shock":"#9a7d0a",
+  "8. Humanitarian / Basic Needs":   "#a04000",
+  "9. Human Trafficking/Smuggling":  "#4d5656"
+};
+const LABEL = {
+  "1. Civil War / Armed Clashes":    "Civil War / Armed Clashes",
+  "2. Security Deterioration":       "Security Deterioration",
+  "3. Political / Governance Event": "Political / Governance Event",
+  "4. Migration Enforcement":        "Migration Enforcement",
+  "5. Economic / Labor Opportunity": "Economic / Labor Opportunity",
+  "6. Transit / Route Movement":     "Transit / Route Movement",
+  "7. Environmental / Weather Shock":"Environmental / Weather Shock",
+  "8. Humanitarian / Basic Needs":   "Humanitarian / Basic Needs",
+  "9. Human Trafficking/Smuggling":  "Human Trafficking / Smuggling"
+};
+
+// ── MIGRANT STOCK DATA ────────────────────────────────────────────────────
+const STOCK=[
+  {y:2016,m:1,v:114770},{y:2016,m:2,v:142370},{y:2016,m:4,v:234699},
+  {y:2016,m:6,v:264014},{y:2016,m:8,v:276957},{y:2016,m:10,v:256690},
+  {y:2016,m:12,v:245242},
+  {y:2017,m:1,v:276957},{y:2017,m:2,v:381463},{y:2017,m:3,v:351382},
+  {y:2017,m:4,v:393652},{y:2017,m:6,v:390198},{y:2017,m:8,v:400445},
+  {y:2017,m:9,v:416556},{y:2017,m:10,v:423394},{y:2017,m:11,v:432574},
+  {y:2017,m:12,v:621706},
+  {y:2018,m:1,v:704142},{y:2018,m:2,v:704142},{y:2018,m:3,v:664248},
+  {y:2018,m:4,v:690351},{y:2018,m:5,v:679897},{y:2018,m:6,v:679897},
+  {y:2018,m:7,v:669176},{y:2018,m:8,v:669176},{y:2018,m:9,v:670920},
+  {y:2018,m:10,v:670920},{y:2018,m:11,v:663455},{y:2018,m:12,v:663455},
+  {y:2019,m:1,v:666717},{y:2019,m:2,v:666717},{y:2019,m:3,v:641398},
+  {y:2019,m:4,v:641398},{y:2019,m:5,v:641398},{y:2019,m:6,v:655144},
+  {y:2019,m:7,v:655144},{y:2019,m:8,v:636426},{y:2019,m:9,v:636426},
+  {y:2019,m:10,v:663455},{y:2019,m:11,v:663455},{y:2019,m:12,v:663455}
+];
+
+function toX(y,m){return y+(m-1)/12}
+function interp(x){
+  const xs=STOCK.map(d=>toX(d.y,d.m)),ys=STOCK.map(d=>d.v);
+  for(let i=0;i<xs.length-1;i++){
+    if(x>=xs[i]&&x<=xs[i+1]){
+      const t=(x-xs[i])/(xs[i+1]-xs[i]);
+      return Math.round(ys[i]+t*(ys[i+1]-ys[i]));
+    }
+  }
+  return x<=xs[0]?ys[0]:ys[ys.length-1];
+}
+
+// ── CURATED EVENTS FROM SPREADSHEET ──────────────────────────────────────
+// isMeth=true → drawn as star, explains jumps from methodology changes
+const EVENTS=[
+  // ─ METHODOLOGY / FMP (stars) ─
+  {y:2016,m:1,isMeth:true,
+   type:"6. Transit / Route Movement",
+   label:"DTM Flow Monitoring Version 11 launched — 141 FMPs established",
+   desc:"IOM DTM Libya launches Flow Monitoring Version 11 methodology. 56 enumerators begin daily head-count assessments at 141 Flow Monitoring Points (FMPs) across Libya, establishing the baseline tracking system for all subsequent migrant stock estimates. This is the foundation data collection launch for the 2016–2017 series.",
+   src:"https://dtm.iom.int/dtm_download_track/1492?file=1&type=node&id=1572"},
+
+  {y:2017,m:12,isMeth:true,
+   type:"6. Transit / Route Movement",
+   label:"Round 16: KI network expanded (1,258 → 1,426); double-verification introduced",
+   desc:"DTM Round 16 (December 2017) introduces major methodology updates: Key Informant (KI) network expanded from 1,258 to 1,426 sources; a double-verification process applied to all collected data; on-the-ground verification conducted in Tripoli, Misrata, Benghazi, Sebha and Al Kufra. These changes directly drive the sharp jump from ~432k (Nov) to 621,706 (Dec 2017).",
+   src:"https://dtm.iom.int/reports/libya-flow-monitoring-migrant-report-round-16"},
+
+  {y:2018,m:1,isMeth:true,
+   type:"6. Transit / Route Movement",
+   label:"Round 17: New assessment forms (UNICEF partnership); KI pool doubled",
+   desc:"Round 17 implements new assessment forms developed in consultation with UNICEF and all partners. The KI pool is doubled, protection is mainstreamed throughout the programme, and dynamic data portals are introduced. Migrant stock rises to 704,142 — the series peak — reflecting expanded capture of previously invisible migrants now counted under the revised methodology.",
+   src:"https://dtm.iom.int/reports/libya-flow-monitoring-migrant-report-round-16"},
+
+  // ─ CIVIL WAR ─
+  {y:2016,m:1,isMeth:false,
+   type:"1. Civil War / Armed Clashes",
+   label:"ISIS expands along Libya's northern coast; attacks Sidra oil port",
+   desc:"ISIS attacked Sidra oil port along Libya's North coast and the police academy in Zlitan (city next to Tripoli). The group imposed full control over the city of Bin Jawad in the Sirte District after intense fighting with forces loyal to the provisional government in Tripoli, destabilizing key northern migration corridors at the start of the tracking period.",
+   src:"https://libyaobserver.ly/news/libya-2016-chronology"},
+
+  {y:2016,m:5,isMeth:false,
+   type:"1. Civil War / Armed Clashes",
+   label:"Sirte fighting displaces thousands — IDPs increase May–Aug 2016",
+   desc:"Fresh waves of displacement took place from Sirte and nearby districts in May as GNA forces launched operations against ISIS. Up to 5,560 households fled to Bani Walid, Tarhuna, Tripoli and Misratah. The number of IDPs identified increased between May and August 2016 due to fighting in Sirte, pushing migrant stock numbers upward through mid-year.",
+   src:"https://dtm.iom.int/dtm_download_track/1492?file=1&type=node&id=1572"},
+
+  {y:2016,m:8,isMeth:false,
+   type:"1. Civil War / Armed Clashes",
+   label:"U.S. airstrikes on ISIS in Sirte; migrant inflows from Niger slow",
+   desc:"U.S. conducted airstrikes in Sirte, Libya targeting ISIS at the request of the GNA. While intended to aid the GNA, continued conflict and instability disrupted southern transit routes. Inflows from Niger began to slow and more migrants departed for Italy — both contributing to the stock decline observed in Oct–Dec 2016 (276k → 245k).",
+   src:"https://www.war.gov/News/News-Stories/Article/Article/881815/us-conducts-airstrikes-against-isil-in-sirte-libya/"},
+
+  {y:2019,m:4,isMeth:false,
+   type:"1. Civil War / Armed Clashes",
+   label:"LNA launches surprise offensive on Tripoli — mass displacement",
+   desc:"Following escalation of armed conflict in Suq Al Khamis, Aziziya and southern Tripoli on 5 April, at least 895 families (~4,475 individuals) were displaced to Tripoli, Msallata, Garabolli, Gheryan, Bani Walid and Tarhuna. The LNA surprise attack on Tripoli marked a major escalation contributing to declining migrant stock through summer 2019.",
+   src:"https://dtm.iom.int/reports/libya-—-tripoli-flash-update-06-april-2019?close=true"},
+
+  {y:2019,m:7,isMeth:false,
+   type:"1. Civil War / Armed Clashes",
+   label:"LNA airstrike kills 53 migrants at Tajoura detention centre",
+   desc:"An LNA airstrike hit the Tajoura migrant detention centre east of Tripoli in July 2019, killing at least 53 detained migrants. The attack drew widespread international condemnation and intensified pressure on Libya's detention system, occurring during the period of declining migrant stock driven by the ongoing Tripoli offensive.",
+   src:"https://www.hrw.org/world-report/2020/country-chapters/libya"},
+
+  // ─ POLITICAL ─
+  {y:2016,m:3,isMeth:false,
+   type:"3. Political / Governance Event",
+   label:"UN-backed GNA arrives in Tripoli by boat",
+   desc:"In March, the new UN-backed Government of National Accord (GNA) arrived in Tripoli by boat after airspace was blocked, defying opposition warnings. Improved political legitimacy temporarily stabilized western Libya and encouraged northward migrant movement, contributing to the sharp rise in migrant stock from 114k (Jan) to 264k (Jun) 2016.",
+   src:"https://dtm.iom.int/dtm_download_track/1492?file=1&type=node&id=1572"},
+
+  {y:2017,m:8,isMeth:false,
+   type:"3. Political / Governance Event",
+   label:"Italy/EU code of conduct; Libyan Coast Guard equipped and trained",
+   desc:"Italy, with EU support, introduces a code of conduct restricting NGO rescue vessels and provides the Libyan Coast Guard with boats and training for interception operations in a newly established Libyan search and rescue zone. This sharply reduced Mediterranean crossings but kept more migrants trapped in Libya, sustaining high stock figures through late 2017 and into 2018.",
+   src:"https://www.ohchr.org/en/press-releases/2017/08/eu-trying-move-border-libya-using-policy-breaches-rights-un-experts"},
+
+  {y:2018,m:7,isMeth:false,
+   type:"3. Political / Governance Event",
+   label:"Algeria strands ~13,000 migrants in the Sahara Desert",
+   desc:"Algeria's government released migrants into the Sahara Desert — some returning from failed attempts at reaching Europe. International attention following a June 2018 report led Algeria to eventually end the policy. This redirected more migrants back toward Libya's southern routes, contributing to stable stock figures in mid-2018.",
+   src:"https://www.ap.org/news-highlights/best-of-the-week/2018/algeria-strands-13k-migrants-in-the-sahara-desert/"},
+
+  // ─ MIGRATION ENFORCEMENT ─
+  {y:2017,m:11,isMeth:false,
+   type:"4. Migration Enforcement",
+   label:"5,000+ migrants found detained on farm at Al Maya",
+   desc:"On November 19th, over 5,000 migrants were found detained on a farm in Al Maya, Libya. This large-scale detention event — alongside CNN's broadcast of migrant slave auctions — triggered international condemnation and intensified IOM Assisted Voluntary Return (AVRR) evacuations in late 2017, yet stock continued rising into December due to expanded methodology.",
+   src:"https://dtm.iom.int/reports/libya-%E2%80%94-displacement-event-tracking-report-1%E2%80%9421-november-2017?close=true"},
+
+  {y:2018,m:5,isMeth:false,
+   type:"4. Migration Enforcement",
+   label:"Niger deports Sudanese refugees back to Libya",
+   desc:"Niger deported Sudanese refugees — primarily from Darfur — from the Agadez hub back to Libya rather than allowing onward movement toward Europe. This enforcement action redirected migrants into Libya's southern smuggling and detention networks, contributing to sustained stock levels in 2018 even as other pressures began reducing new inflows from West Africa.",
+   src:"https://www.thenewhumanitarian.org/news/2018/05/10/niger-sends-sudanese-refugees-back-libya"},
+
+  // ─ ECONOMIC / LABOR ─
+  {y:2018,m:3,isMeth:false,
+   type:"5. Economic / Labor Opportunity",
+   label:"Spring farm jobs attract migrants; Agadez corridor collapses",
+   desc:"Better spring weather resulted in a notable increase in farm jobs in Libya, drawing migrant arrivals in early 2018. Simultaneously, northern Niger's migrant economy in Agadez was crashing due to EU-funded enforcement and development aid conditioned on tighter borders — reducing the flow of new Sub-Saharan migrants through the Agadez corridor and explaining the plateau after the January 2018 peak.",
+   src:"https://dtm.iom.int/reports/libya-migrant-report-18-march-2018?close=true"},
+
+  // ─ TRANSIT / ROUTE ─
+  {y:2016,m:10,isMeth:false,
+   type:"6. Transit / Route Movement",
+   label:"Migrants depart to Italy; Niger inflows slow — stock declines Q4 2016",
+   desc:"Fluctuation in migrant figures between August and December 2016 can be attributed partly to an increase in migrants who travelled to Italy between September and October 2016, and partly to a slowed-down inflow of migrants from Niger. Sebha emerged as the preferred southern hub; transit through Kufra decreased; Bani Walid emerged as a new coastal stopover point.",
+   src:"https://dtm.iom.int/dtm_download_track/2771?file=1&type=node&id=2674"},
+
+  {y:2017,m:1,isMeth:false,
+   type:"6. Transit / Route Movement",
+   label:"Routes shift rapidly; migrants resort to smugglers to fund journey",
+   desc:"Routes changed quickly in response to border control enforcement across the region. Some migrants were being deported back to Libya from Europe. Extensive smuggling networks allowed those without funds to effectively sell themselves to traffickers to cover journey costs. This dynamic — with Libya as the last affordable staging point — contributed to sustained and growing in-country migrant stock through 2017.",
+   src:"https://trust-fund-for-africa.europa.eu/system/files/2018-09/darfur_report_summary_final_3.pdf"},
+
+  // ─ HUMANITARIAN ─
+  {y:2019,m:5,isMeth:false,
+   type:"8. Humanitarian / Basic Needs",
+   label:"Displaced families return home amid conflict due to food shortages",
+   desc:"50 individuals were reported to have returned to homes in Taraghin from Tripoli because they needed food — illustrating extreme humanitarian stress during the LNA Tripoli offensive. The combination of active conflict, mass displacement, and lack of basic needs access contributed to declining migrant stock estimates through summer 2019.",
+   src:"https://dtm.iom.int/reports/libya-%E2%80%94-displacement-event-tracking-report-1-31-may-2019?close=true"},
+
+  // ─ HUMAN TRAFFICKING ─
+  {y:2017,m:1,isMeth:false,
+   type:"9. Human Trafficking/Smuggling",
+   label:"OHCHR documents systematic abuse in unofficial detention centers",
+   desc:"OHCHR documented widespread human rights violations in detention centers across Libya throughout 2017, including unofficial centers run by armed groups and smugglers. Migrants in transit were routinely extorted, abused, and sold. This systematic exploitation across smuggling networks forms the operational backdrop to the sustained and rising migrant stock estimates throughout 2017.",
+   src:"https://www.ohchr.org/sites/default/files/Documents/Countries/LY/InfographicsMigrationReport.pdf"},
+
+  // ─ SECURITY DETERIORATION ─
+  {y:2019,m:1,isMeth:false,
+   type:"2. Security Deterioration",
+   label:"Security deterioration in western Libya; stock plateaus at ~666k",
+   desc:"Continued security deterioration in western Libya through January–February 2019 — including clashes in Tripoli and surrounding areas — created uncertainty for migrant movement and IDP returns. Despite this, migrant stock remained relatively stable (~666k) as Libya continued to function as both a transit country and a destination for labor migrants from Egypt, Sudan, Niger and Chad.",
+   src:"https://dtm.iom.int/reports/libya-%E2%80%94-migrant-report-24-january%E2%80%94february-2019?close=true"}
+];
+
+// ── BUILD CHART ────────────────────────────────────────────────────────────
+const allTypes=[...new Set(EVENTS.map(e=>e.type))].sort();
+const hiddenTypes=new Set();
+
+const lineDS={
+  type:'line',label:'Migrant Stock',
+  data:STOCK.map(d=>({x:toX(d.y,d.m),y:d.v})),
+  borderColor:'#111',borderWidth:2.5,
+  backgroundColor:'rgba(0,0,0,0.04)',fill:true,
+  pointRadius:3,pointBackgroundColor:'#111',
+  tension:0.28,order:2,parsing:false,pointHoverRadius:5
+};
+
+function buildEventDS(){
+  return allTypes.map(t=>{
+    const pts=EVENTS.filter(e=>e.type===t).map(e=>({
+      x:toX(e.y,e.m), y:interp(toX(e.y,e.m)), ev:e
+    }));
+    return {
+      type:'scatter',label:LABEL[t]||t,_typeKey:t,
+      data:pts,
+      backgroundColor:pts.map(p=>p.ev.isMeth?BG[t]||'#ccc':BG[t]||'#ccc'),
+      borderColor:pts.map(p=>p.ev.isMeth?BORDER[t]||'#666':BORDER[t]||'#666'),
+      borderWidth:2,
+      pointRadius:pts.map(p=>p.ev.isMeth?14:9),
+      pointHoverRadius:pts.map(p=>p.ev.isMeth?17:12),
+      pointStyle:pts.map(p=>p.ev.isMeth?'star':'circle'),
+      order:1,hidden:false,parsing:false
+    };
+  });
+}
+
+const ctx=document.getElementById('myChart').getContext('2d');
+const chart=new Chart(ctx,{
+  data:{datasets:[lineDS,...buildEventDS()]},
+  options:{
+    responsive:true,parsing:false,
+    animation:{duration:250},
+    interaction:{mode:'point',intersect:true},
+    scales:{
+      x:{type:'linear',min:2016,max:2020.02,
+        ticks:{
+          callback(v){
+            const yr=Math.floor(v),mo=Math.round((v-yr)*12)+1;
+            if(mo===1)return`Jan ${yr}`;
+            if(mo===4)return`Apr ${yr}`;
+            if(mo===7)return`Jul ${yr}`;
+            if(mo===10)return`Oct ${yr}`;
+            return'';
+          },
+          maxTicksLimit:40,font:{size:10}
+        },
+        grid:{color:'#eee'},
+        title:{display:true,text:'Date',font:{size:12},color:'#555'}
+      },
+      y:{beginAtZero:false,
+        ticks:{callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v,font:{size:10}},
+        grid:{color:'#eee'},
+        title:{display:true,text:'Estimated Migrant Stock',font:{size:12},color:'#555'}
+      }
+    },
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        filter:item=>item.dataset.type==='scatter',
+        callbacks:{title:()=>'',label(item){return item.raw.ev?item.raw.ev.label:''}},
+        backgroundColor:'rgba(20,20,20,.88)',bodyFont:{size:11},padding:9
+      }
+    },
+    onClick(evt){
+      const pts=chart.getElementsAtEventForMode(evt,'point',{intersect:true},false);
+      if(!pts.length){closePopup();return;}
+      const p=pts[0];
+      const ds=chart.data.datasets[p.datasetIndex];
+      if(ds.type!=='scatter')return;
+      const raw=ds.data[p.index];
+      if(!raw||!raw.ev)return;
+      showPopup(raw.ev,evt.native.clientX,evt.native.clientY);
+    }
+  }
+});
+
+// ── POPUP ──────────────────────────────────────────────────────────────────
+const popup=document.getElementById('popup');
+const MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function showPopup(e,cx,cy){
+  document.getElementById('popup-type').textContent=LABEL[e.type]||e.type;
+  document.getElementById('popup-type').style.color=BORDER[e.type]||'#444';
+  document.getElementById('popup-date').textContent=`${MO[e.m-1]} ${e.y}${e.isMeth?' — ★ Methodology / FMP Change':''}`;
+  document.getElementById('popup-desc').textContent=e.desc;
+  // handle multiple sources (some spreadsheet entries had comma/numbered lists)
+  const rawSrcs=e.src.split(/\n|\d+\.\s+(?=https?:\/\/)/).map(s=>s.replace(/^\d+\.\s*/,'').trim()).filter(s=>s.startsWith('http'));
+  if(!rawSrcs.length)rawSrcs.push(e.src);
+  document.getElementById('popup-src').innerHTML=rawSrcs.map((s,i)=>
+    `<a href="${s}" target="_blank" rel="noopener">${rawSrcs.length>1?'Source '+(i+1)+' ↗':'Source ↗'}</a>`
+  ).join('');
+  popup.style.borderLeftColor=BORDER[e.type]||'#888';
+  popup.classList.add('show');
+  const pw=390,ph=280;
+  let left=cx+15,top=cy-70;
+  if(left+pw>window.innerWidth-10)left=cx-pw-15;
+  if(top+ph>window.innerHeight-10)top=window.innerHeight-ph-10;
+  if(top<6)top=6;
+  popup.style.left=left+'px';popup.style.top=top+'px';
+}
+function closePopup(){popup.classList.remove('show');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePopup();});
+
+// ── LEGEND ────────────────────────────────────────────────────────────────
+const lw=document.getElementById('legendWrap');
+
+const ll=document.createElement('div');
+ll.className='legend-item';
+ll.innerHTML='<div class="legend-line"></div><span>Migrant Stock (IOM DTM)</span>';
+lw.appendChild(ll);
+
+const sl=document.createElement('div');
+sl.className='legend-item';
+sl.innerHTML='<span class="legend-star">★</span><span style="font-size:.76rem">Methodology / FMP Change</span>';
+lw.appendChild(sl);
+
+allTypes.forEach(t=>{
+  const li=document.createElement('div');
+  li.className='legend-item';
+  li.dataset.type=t;
+  li.innerHTML=`<div class="legend-swatch" style="background:${BG[t]};border-color:${BORDER[t]}"></div><span>${LABEL[t]||t}</span>`;
+  li.title='Click to toggle';
+  li.addEventListener('click',()=>{
+    const dsIdx=chart.data.datasets.findIndex(d=>d._typeKey===t);
+    if(dsIdx<0)return;
+    const ds=chart.data.datasets[dsIdx];
+    ds.hidden=!ds.hidden;
+    li.classList.toggle('off',ds.hidden);
+    chart.update();
+  });
+  lw.appendChild(li);
+});
+</script>
+</body>
+</html>
